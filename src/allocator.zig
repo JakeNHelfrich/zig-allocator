@@ -1,11 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-// Get a pointer to a variable:
-var number = [_]u8{ 35 };
-const random_array_pointer: [*]u8 = number[0..1];
-
-pub fn StubbedAllocator() type {
+pub fn MyAllocator() type {
     return struct {
         pub const vtable: Allocator.VTable = .{
             .alloc = alloc,
@@ -13,8 +9,16 @@ pub fn StubbedAllocator() type {
             .free = free,
         };
 
-        fn alloc(_: *anyopaque, _: usize, _: u8, _: usize) ?[*]u8 {
-            return random_array_pointer;
+        fn alloc(_: *anyopaque, len: usize, _: u8, _: usize) ?[*]u8 {
+            const ptr = std.posix.mmap(
+                null,
+                len,
+                std.posix.PROT.READ | std.posix.PROT.WRITE,
+                .{ .TYPE = .PRIVATE, .ANONYMOUS = true },
+                -1,
+                0
+            ) catch null;
+            return @ptrCast(ptr);
         }
 
         fn resize(_: *anyopaque, _: []u8, _: u8, _: usize, _: usize) bool {
@@ -27,7 +31,7 @@ pub fn StubbedAllocator() type {
 
 pub const stubbed_allocator = Allocator{
     .ptr = undefined,
-    .vtable = &StubbedAllocator().vtable,
+    .vtable = &MyAllocator().vtable,
 };
 
 // TODO: Write tests
